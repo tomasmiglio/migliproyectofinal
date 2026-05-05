@@ -4,9 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tomas Miglio - Dashboard</title>
-    <!-- Favicon dinámico con el logo de la "M" -->
+    <!-- Favicon dinámico -->
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 400'><path d='M100 120 L300 120 M200 120 L200 280 M100 150 L100 300 L200 220 L300 300 L300 150' fill='none' stroke='%23d4af37' stroke-width='25' stroke-linejoin='bevel' /></svg>">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Inter:wght@300;400;600;700&display=swap');
         
@@ -21,6 +22,7 @@
             font-family: 'Inter', sans-serif; 
             background-color: var(--bg-color);
             color: #e5e5e5;
+            overflow-x: hidden;
         }
 
         .brand-name {
@@ -92,24 +94,73 @@
         .progress-container { width: 100%; background: #222; height: 12px; border-radius: 6px; overflow: hidden; }
         .progress-bar { height: 100%; transition: width 0.5s ease-in-out; }
 
-        .live-dot {
-            width: 8px;
-            height: 8px;
-            background-color: #ef4444;
-            border-radius: 50%;
-            display: inline-block;
-            margin-right: 6px;
-            animation: pulse-red 1.5s infinite;
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 4px;
+        }
+        .calendar-day {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.65rem;
+            border-radius: 4px;
+            border: 1px solid rgba(255,255,255,0.03);
+            background: rgba(255,255,255,0.02);
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .calendar-day:hover {
+            border-color: var(--gold);
+            background: rgba(212, 175, 55, 0.1);
+        }
+        .day-today { border: 1px solid var(--gold) !important; box-shadow: inset 0 0 5px var(--gold); }
+        .day-selected { border: 2px solid var(--gold) !important; background: rgba(212, 175, 55, 0.2) !important; z-index: 10; }
+
+        .ai-glow {
+            box-shadow: 0 0 20px rgba(212, 175, 55, 0.1);
+            border: 1px solid rgba(212, 175, 55, 0.2);
         }
 
-        @keyframes pulse-red {
-            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
-            70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
-            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        #chart-container {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.8s ease;
+        }
+        #chart-container.active {
+            max-height: 2000px;
+        }
+
+        .edit-btn { opacity: 0.3; transition: opacity 0.2s; cursor: pointer; }
+        .edit-btn:hover { opacity: 1; color: var(--gold); }
+        .item-row:hover .edit-btn { opacity: 0.6; }
+
+        /* Estilos para el modal del Coach */
+        #coach-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(5px);
+            z-index: 2000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
         }
     </style>
 </head>
 <body>
+
+    <!-- MODAL DEL COACH -->
+    <div id="coach-modal">
+        <div class="glass-card p-8 max-w-lg w-full border border-gold/30">
+            <h3 class="brand-name text-2xl mb-4">Consejo del Coach</h3>
+            <div id="coach-response" class="text-gray-300 text-sm leading-relaxed mb-6 italic">Cargando sabiduría...</div>
+            <button onclick="closeCoachModal()" class="w-full bg-gold text-black py-2 rounded-lg font-bold uppercase text-xs">Entendido</button>
+        </div>
+    </div>
 
     <!-- PANTALLA INICIAL -->
     <div id="landing-page">
@@ -137,6 +188,11 @@
         </div>
     </nav>
 
+    <!-- BADGE DE HISTORIAL -->
+    <div id="history-badge" class="hidden sticky top-20 z-40 bg-gold text-black text-center py-1 font-black text-[10px] uppercase tracking-widest shadow-lg">
+        Viendo día: <span id="history-date-label"></span> | <button onclick="resetToToday()" class="underline ml-2">Volver a Hoy</button>
+    </div>
+
     <main class="max-w-6xl mx-auto p-6">
         
         <!-- DASHBOARD -->
@@ -146,19 +202,22 @@
                 <div class="glass-card p-6 border-l-4 border-blue-500">
                     <h4 class="text-[10px] font-bold text-gray-500 uppercase mb-1">Morteros, Córdoba</h4>
                     <p id="temp-val" class="text-4xl font-black">--°C</p>
-                    <p class="text-xs text-gray-400">Clima en vivo</p>
+                    <p class="text-xs text-gray-400">Actualiza c/3min</p>
                 </div>
                 <!-- Dólar -->
                 <div class="glass-card p-6 border-l-4 border-green-500">
                     <h4 class="text-[10px] font-bold text-gray-500 uppercase mb-1">Dólar Blue</h4>
                     <p class="text-4xl font-black text-green-500">$<span id="dolar-val">----</span></p>
-                    <p class="text-[10px] text-gray-600 uppercase">Cotización actual</p>
+                    <p class="text-[10px] text-gray-600 uppercase">Actualiza c/3min</p>
                 </div>
                 <!-- 9z Team Tracker -->
                 <div class="glass-card p-6 border-l-4 border-purple-500 relative overflow-hidden">
                     <div class="flex justify-between items-start mb-1">
                         <h4 class="text-[10px] font-bold text-gray-500 uppercase">9z Team Tracker</h4>
-                        <button onclick="update9zMatch()" class="text-[8px] text-purple-400 font-bold hover:text-purple-300 uppercase tracking-tighter">Actualizar</button>
+                        <div class="flex items-center gap-2">
+                             <span id="update-timer" class="text-[7px] text-gray-600 font-bold uppercase">Auto-sync</span>
+                             <button onclick="update9zMatch()" class="text-[8px] text-purple-400 font-bold hover:text-purple-300 uppercase tracking-tighter">Refrescar</button>
+                        </div>
                     </div>
                     <div id="9z-status-container">
                         <div id="9z-loading" class="animate-pulse flex space-y-2 flex-col">
@@ -166,15 +225,41 @@
                             <div class="h-3 bg-white/5 rounded w-1/2"></div>
                         </div>
                         <div id="9z-content" class="hidden">
-                            <p id="9z-match-name" class="text-xl font-bold italic truncate">Cargando...</p>
+                            <p id="9z-match-name" class="text-xl font-bold italic truncate">Buscando...</p>
                             <p id="9z-match-time" class="text-[10px] font-bold uppercase tracking-wide"></p>
                         </div>
                     </div>
                 </div>
             </div>
-            <div class="glass-card p-8">
-                <h3 class="brand-name text-2xl mb-4">Notas Rápidas</h3>
-                <textarea id="personal-notes" class="w-full h-64 bg-transparent border border-white/10 rounded-2xl p-6 text-gray-300 outline-none focus:border-gold/30 resize-none" placeholder="Escribe tus objetivos del día..." oninput="saveNotes()"></textarea>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Notas -->
+                <div class="glass-card p-8 lg:col-span-2">
+                    <h3 class="brand-name text-2xl mb-4">Notas Rápidas</h3>
+                    <textarea id="personal-notes" class="w-full h-64 bg-transparent border border-white/10 rounded-2xl p-6 text-gray-300 outline-none focus:border-gold/30 resize-none" placeholder="Escribe tus objetivos del día..." oninput="saveNotes()"></textarea>
+                </div>
+
+                <!-- CALENDARIO -->
+                <div class="glass-card p-6 flex flex-col">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-[10px] font-black text-gold uppercase tracking-widest">Calendario</h3>
+                        <div class="flex gap-2">
+                            <button onclick="changeCalMonth(-1)" class="text-xs text-gray-500 hover:text-white">←</button>
+                            <span id="cal-month-label" class="text-[10px] font-bold uppercase text-white min-w-[80px] text-center">---</span>
+                            <button onclick="changeCalMonth(1)" class="text-xs text-gray-500 hover:text-white">→</button>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-7 gap-1 text-center mb-2">
+                        <span class="text-[8px] text-gray-600 font-bold">L</span>
+                        <span class="text-[8px] text-gray-600 font-bold">M</span>
+                        <span class="text-[8px] text-gray-600 font-bold">M</span>
+                        <span class="text-[8px] text-gray-600 font-bold">J</span>
+                        <span class="text-[8px] text-gray-600 font-bold">V</span>
+                        <span class="text-[8px] text-gray-600 font-bold">S</span>
+                        <span class="text-[8px] text-gray-600 font-bold">D</span>
+                    </div>
+                    <div id="calendar-body" class="calendar-grid"></div>
+                </div>
             </div>
         </section>
 
@@ -190,8 +275,37 @@
                         </div>
                         <p class="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Saldo Proyectado: <span id="display-saldo-final" class="text-white">$0</span></p>
                     </div>
+                    <div>
+                        <button onclick="toggleFinanceAnalysis()" class="bg-gold text-black px-8 py-3 rounded-xl font-black uppercase text-xs hover:scale-105 transition-transform shadow-lg shadow-gold/20">
+                            Analizar Finanzas
+                        </button>
+                    </div>
                 </div>
             </div>
+
+            <div id="chart-container" class="space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="glass-card p-6 flex flex-col items-center">
+                        <h3 class="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-6 w-full">Distribución de Gastos</h3>
+                        <div class="w-full max-w-[280px]">
+                            <canvas id="expenses-pie-chart"></canvas>
+                        </div>
+                    </div>
+                    <div class="glass-card p-6 flex flex-col items-center">
+                        <h3 class="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-6 w-full">Balance Ingresos vs Gastos</h3>
+                        <div class="w-full h-[280px]">
+                            <canvas id="balance-bar-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="glass-card p-6 ai-glow border-gold/20">
+                    <h3 class="text-[10px] font-black text-gold uppercase tracking-widest mb-4">Informe de Salud Financiera (IA)</h3>
+                    <div id="fin-ai-content" class="text-sm text-gray-400 italic">
+                        Calculando métricas...
+                    </div>
+                </div>
+            </div>
+
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div class="glass-card p-6">
                     <h2 class="text-[10px] font-black mb-6 text-gray-500 uppercase tracking-widest">Nuevo Registro</h2>
@@ -208,15 +322,26 @@
                     </div>
                 </div>
                 <div class="glass-card p-6">
-                    <h2 class="text-[10px] font-black text-gray-500 uppercase mb-6">Historial</h2>
-                    <div id="lista-general" class="space-y-3"></div>
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Historial</h2>
+                        <div class="flex gap-4">
+                            <div class="text-right">
+                                <p class="text-[8px] text-green-500 font-black uppercase">Ingresos</p>
+                                <p id="total-ingresos-label" class="text-xs font-black text-white">$0</p>
+                            </div>
+                            <div class="text-right border-l border-white/10 pl-4">
+                                <p class="text-[8px] text-red-500 font-black uppercase">Gastos</p>
+                                <p id="total-gastos-label" class="text-xs font-black text-white">$0</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="lista-general" class="space-y-3 max-h-[300px] overflow-y-auto pr-2"></div>
                 </div>
             </div>
         </section>
 
         <!-- MIGLIO FITNESS -->
         <section id="sec-fitness" class="hidden space-y-6 pb-20">
-            <!-- Perfil Físico -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div class="glass-card p-6">
                     <h3 class="text-[10px] font-black text-gold uppercase tracking-widest mb-4">Perfil Físico</h3>
@@ -236,7 +361,12 @@
                     </div>
                 </div>
                 <div class="glass-card p-6 col-span-2">
-                    <h3 class="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-4">Resumen de Energía</h3>
+                    <div class="flex justify-between items-start mb-4">
+                        <h3 class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Resumen de Energía</h3>
+                        <button onclick="getCoachSummary()" class="bg-gold/10 border border-gold/30 text-gold hover:bg-gold hover:text-black px-4 py-1.5 rounded-full text-[9px] font-black uppercase transition-all tracking-wider">
+                            Resumen del Coach
+                        </button>
+                    </div>
                     <div class="flex justify-between items-end">
                         <div>
                             <p class="text-[9px] text-gray-400 uppercase font-black">Metabolismo Basal (TMB)</p>
@@ -250,26 +380,23 @@
                 </div>
             </div>
 
-            <!-- Gráfico y Macros -->
             <div class="glass-card p-8 bg-gradient-to-r from-black to-[#111]">
-                <h2 class="brand-name text-3xl mb-6">Miglio Fitness</h2>
+                <h2 class="brand-name text-3xl mb-6" id="fitness-title">Miglio Fitness</h2>
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
                     <div class="space-y-4">
-                        <div class="space-y-4">
-                            <div>
-                                <div class="flex justify-between text-xs mb-2">
-                                    <span class="text-orange-400 font-bold uppercase">Consumidas</span>
-                                    <span id="label-cons" class="font-black text-white">0 kcal</span>
-                                </div>
-                                <div class="progress-container"><div id="bar-cons" class="progress-bar bg-orange-500" style="width: 0%"></div></div>
+                        <div>
+                            <div class="flex justify-between text-xs mb-2">
+                                <span class="text-orange-400 font-bold uppercase">Consumidas</span>
+                                <span id="label-cons" class="font-black text-white">0 kcal</span>
                             </div>
-                            <div>
-                                <div class="flex justify-between text-xs mb-2">
-                                    <span class="text-purple-400 font-bold uppercase">Gasto Total (Basal + Actividad)</span>
-                                    <span id="label-gast" class="font-black text-white">0 kcal</span>
-                                </div>
-                                <div class="progress-container"><div id="bar-gast" class="progress-bar bg-purple-500" style="width: 0%"></div></div>
+                            <div class="progress-container"><div id="bar-cons" class="progress-bar bg-orange-500" style="width: 0%"></div></div>
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-xs mb-2">
+                                <span class="text-purple-400 font-bold uppercase">Gasto Total</span>
+                                <span id="label-gast" class="font-black text-white">0 kcal</span>
                             </div>
+                            <div class="progress-container"><div id="bar-gast" class="progress-bar bg-purple-500" style="width: 0%"></div></div>
                         </div>
                     </div>
                     <div class="grid grid-cols-3 gap-4">
@@ -289,17 +416,15 @@
                 </div>
             </div>
 
-            <!-- Entrada de Datos -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div class="glass-card p-6 border-orange-500/20">
+            <div id="fitness-controls" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="glass-card p-6">
                     <h2 class="text-sm font-bold text-orange-400 uppercase tracking-widest mb-4">IA Nutricional</h2>
                     <textarea id="ia-input" rows="3" placeholder="Ej: 300g pasta boloñesa..." class="input-dark w-full text-sm mb-4 resize-none"></textarea>
                     <button onclick="analyzeFoodWithAI()" id="btn-ia" class="w-full bg-orange-600 text-white py-3 rounded-xl font-black uppercase text-[10px]">Analizar Comida</button>
-                    <div id="ia-loading" class="hidden mt-4 text-center animate-pulse text-[10px] uppercase text-gray-500 tracking-widest">Procesando macros...</div>
+                    <div id="ia-loading" class="hidden mt-4 text-center animate-pulse text-[10px] uppercase text-gray-500 tracking-widest">Procesando...</div>
                     <div id="lista-comidas" class="mt-6 space-y-2"></div>
                 </div>
-
-                <div class="glass-card p-6 border-purple-500/20">
+                <div class="glass-card p-6">
                     <h2 class="text-sm font-bold text-purple-400 uppercase tracking-widest mb-4">Actividad Física</h2>
                     <div class="space-y-4">
                         <div class="grid grid-cols-2 gap-3">
@@ -309,27 +434,12 @@
                             </select>
                             <input type="number" id="fit-duracion" placeholder="Minutos" class="input-dark text-xs">
                         </div>
-                        <div id="cardio-extra" class="hidden grid grid-cols-2 gap-3 p-3 bg-white/5 rounded-xl">
-                            <div>
-                                <label class="text-[8px] text-gray-500 font-black uppercase">KM</label>
-                                <input type="number" id="fit-km" placeholder="0" class="bg-transparent border-b border-white/10 w-full text-sm outline-none">
-                            </div>
-                            <div class="text-right">
-                                <label class="text-[8px] text-gray-500 font-black uppercase">KM/H</label>
-                                <p id="val-kmh" class="text-sm font-black text-purple-400">0</p>
-                            </div>
+                        <div id="cardio-extra" class="hidden p-3 bg-white/5 rounded-xl">
+                            <input type="number" id="fit-km" placeholder="KM Recorridos" class="bg-transparent border-b border-white/10 w-full text-sm outline-none">
                         </div>
                         <button onclick="addExercise()" class="w-full bg-purple-600 text-white py-3 rounded-xl font-black uppercase text-[10px]">Registrar</button>
                         <div id="lista-ejercicios" class="mt-4 space-y-2"></div>
                     </div>
-                </div>
-            </div>
-
-            <!-- ANÁLISIS DEL DÍA -->
-            <div class="glass-card p-8 border-gold/10">
-                <h2 class="text-sm font-bold text-gold uppercase tracking-widest mb-6">Análisis Profundo del Día</h2>
-                <div id="analisis-ia-dia" class="text-gray-400 text-sm leading-relaxed italic">
-                    Ingresa tus comidas y ejercicios para obtener un reporte IA sobre tu rendimiento hoy...
                 </div>
             </div>
         </section>
@@ -338,16 +448,54 @@
     <script>
         const apiKey = ""; 
 
-        // PERSISTENCIA
-        let profile = JSON.parse(localStorage.getItem('tomas_profile')) || { peso: 80, altura: 180, target: 75 };
-        let fitness = JSON.parse(localStorage.getItem('tomas_fitness_v3')) || { comidas: [], ejercicios: [] };
-        let finanzas = JSON.parse(localStorage.getItem('tomas_finanzas')) || { saldoActual: 0, movimientos: [] };
+        // ESTADO GLOBAL
+        const getTodayKey = () => new Date().toISOString().split('T')[0];
+        let currentViewDate = getTodayKey(); 
+        let calendarMonthDate = new Date(); 
+        let charts = { pie: null, bar: null };
 
-        // NAVEGACIÓN
+        // CARGA DE DATOS BASADA EN FECHA
+        function loadDayData(date) {
+            currentViewDate = date;
+            
+            // Perfil siempre es global
+            window.profile = JSON.parse(localStorage.getItem('tomas_profile')) || { peso: 80, altura: 180, target: 75 };
+            
+            // Datos por fecha
+            const dayFitness = JSON.parse(localStorage.getItem(`fit_${date}`)) || { comidas: [], ejercicios: [] };
+            const dayFinanzas = JSON.parse(localStorage.getItem(`fin_${date}`)) || { saldoActual: 0, movimientos: [] };
+            const dayNotes = localStorage.getItem(`notes_${date}`) || "";
+
+            window.fitness = dayFitness;
+            window.finanzas = dayFinanzas;
+            
+            // UI
+            document.getElementById('personal-notes').value = dayNotes;
+            
+            const isToday = date === getTodayKey();
+            document.getElementById('history-badge').classList.toggle('hidden', isToday);
+            document.getElementById('history-date-label').innerText = date;
+
+            updateFitnessUI();
+            updateFinanzasUI();
+            renderCalendar();
+            
+            // Forzar actualización de gráficos si están visibles
+            if (document.getElementById('chart-container').classList.contains('active')) {
+                renderFinanzasCharts();
+            }
+        }
+
+        // NAVIGATION
         function enterApp() {
             document.getElementById('landing-page').classList.add('hidden-page');
-            setTimeout(() => document.getElementById('landing-page').style.display = 'none', 800);
-            initDashboard();
+            setTimeout(() => {
+                document.getElementById('landing-page').style.display = 'none';
+                initDashboard();
+            }, 800);
+            
+            setInterval(() => { updateDolar(); updateClima(); update9zMatch(); }, 180000);
+            checkMidnightReset();
         }
 
         function switchTab(tab) {
@@ -358,212 +506,385 @@
             });
             document.getElementById(`sec-${tab}`).classList.remove('hidden');
             document.getElementById(`tab-${tab}`).classList.add('tab-active');
+            
             if(tab === 'fitness') updateFitnessUI();
             if(tab === 'finanzas') updateFinanzasUI();
+            if(tab === 'dashboard') renderCalendar();
         }
 
-        // DASHBOARD
+        function resetToToday() {
+            loadDayData(getTodayKey());
+        }
+
+        function checkMidnightReset() {
+            setInterval(() => {
+                const now = new Date();
+                if(now.getHours() === 0 && now.getMinutes() === 0 && currentViewDate !== getTodayKey()) {
+                    loadDayData(getTodayKey());
+                }
+            }, 30000);
+        }
+
+        // --- DASHBOARD ---
         async function initDashboard() {
-            document.getElementById('personal-notes').value = localStorage.getItem('tomas_notes') || "";
-            document.getElementById('user-peso').value = profile.peso;
-            document.getElementById('user-altura').value = profile.altura;
-            document.getElementById('user-target').value = profile.target;
-            
-            // Clima
+            updateClima(); updateDolar(); update9zMatch(); 
+            loadDayData(getTodayKey());
+        }
+
+        async function updateClima() {
             try {
                 const res = await fetch('https://api.open-meteo.com/v1/forecast?latitude=-30.7121&longitude=-61.9986&current_weather=true');
                 const data = await res.json();
                 document.getElementById('temp-val').innerText = `${Math.round(data.current_weather.temperature)}°C`;
-            } catch (e) { document.getElementById('temp-val').innerText = "22°C"; }
-            
-            // Dólar
+            } catch (e) {}
+        }
+
+        async function updateDolar() {
             try {
                 const res = await fetch('https://dolarapi.com/v1/dolares/blue');
                 const data = await res.json();
                 document.getElementById('dolar-val').innerText = data.venta;
-            } catch (e) { document.getElementById('dolar-val').innerText = "1245"; }
-
-            // 9z Match
-            update9zMatch();
+            } catch (e) {}
         }
 
         async function update9zMatch() {
             const loading = document.getElementById('9z-loading');
             const content = document.getElementById('9z-content');
-            loading.classList.remove('hidden');
-            content.classList.add('hidden');
-
             try {
                 const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
-                        contents: [{ parts: [{ text: "Busca en HLTV y resultados recientes: ¿Está jugando 9z Team ahora mismo en CS2? Si está jugando, devuelve marcador y rival. Si no, devuelve próximo partido y horario. Responde solo JSON: {\"isLive\": bool, \"match\": \"9z vs Rival\", \"score\": \"Score o Horario\", \"status\": \"LIVE o Proximo\"}" }] }],
+                        contents: [{ parts: [{ text: `Próximo partido 9z Team CS2. Responde JSON breve: {"match": "9z vs Rival", "score": "hora/fecha"}` }] }],
                         tools: [{ "google_search": {} }],
                         generationConfig: { responseMimeType: "application/json" }
                     })
                 });
                 const data = await response.json();
                 const res = JSON.parse(data.candidates[0].content.parts[0].text);
-                
-                const nameEl = document.getElementById('9z-match-name');
-                const timeEl = document.getElementById('9z-match-time');
-
-                if (res.isLive) {
-                    nameEl.innerHTML = `<span class="live-dot"></span>${res.match}`;
-                    timeEl.innerText = `${res.score} - EN VIVO`;
-                    timeEl.className = "text-[10px] font-bold text-purple-400 uppercase tracking-wide animate-pulse";
-                } else {
-                    nameEl.innerText = res.match;
-                    timeEl.innerText = res.score;
-                    timeEl.className = "text-[10px] font-bold text-gray-500 uppercase tracking-wide";
-                }
-
-                loading.classList.add('hidden');
-                content.classList.remove('hidden');
-            } catch (e) {
-                document.getElementById('9z-match-name').innerText = "9z vs TBD";
-                document.getElementById('9z-match-time').innerText = "Sin partidos hoy";
-                loading.classList.add('hidden');
-                content.classList.remove('hidden');
+                document.getElementById('9z-match-name').innerText = res.match || "Match TBD";
+                document.getElementById('9z-match-time').innerText = res.score || "Próximamente";
+                loading.classList.add('hidden'); content.classList.remove('hidden');
+            } catch (e) { 
+                loading.classList.add('hidden'); 
+                content.classList.remove('hidden'); 
+                document.getElementById('9z-match-name').innerText = "Match TBD";
             }
         }
 
-        function saveNotes() { localStorage.setItem('tomas_notes', document.getElementById('personal-notes').value); }
+        function saveNotes() { 
+            localStorage.setItem(`notes_${currentViewDate}`, document.getElementById('personal-notes').value); 
+        }
 
-        // PERFIL FITNESS
+        // --- FINANZAS ---
+        function saveAndUpdateFinanzas() {
+            finanzas.saldoActual = parseFloat(document.getElementById('fin-saldo-actual').value) || 0;
+            localStorage.setItem(`fin_${currentViewDate}`, JSON.stringify(finanzas));
+            updateFinanzasUI();
+        }
+
+        function addMovimiento() {
+            const conc = document.getElementById('fin-concepto').value;
+            const monto = parseFloat(document.getElementById('fin-monto').value);
+            const tipo = document.getElementById('fin-tipo').value;
+            if(!conc || isNaN(monto)) return;
+            finanzas.movimientos.unshift({ id: Date.now(), conc, monto, tipo });
+            localStorage.setItem(`fin_${currentViewDate}`, JSON.stringify(finanzas));
+            updateFinanzasUI();
+            document.getElementById('fin-concepto').value = '';
+            document.getElementById('fin-monto').value = '';
+        }
+
+        function deleteMovimiento(id) {
+            finanzas.movimientos = finanzas.movimientos.filter(m => m.id !== id);
+            localStorage.setItem(`fin_${currentViewDate}`, JSON.stringify(finanzas));
+            updateFinanzasUI();
+        }
+
+        function updateFinanzasUI() {
+            document.getElementById('fin-saldo-actual').value = finanzas.saldoActual;
+            const tI = finanzas.movimientos.filter(m => m.tipo === 'ingreso').reduce((a, b) => a + b.monto, 0);
+            const tG = finanzas.movimientos.filter(m => m.tipo === 'gasto').reduce((a, b) => a + b.monto, 0);
+            document.getElementById('total-ingresos-label').innerText = `$${tI.toLocaleString()}`;
+            document.getElementById('total-gastos-label').innerText = `$${tG.toLocaleString()}`;
+            document.getElementById('display-saldo-final').innerText = `$${(finanzas.saldoActual + tI - tG).toLocaleString()}`;
+            
+            document.getElementById('lista-general').innerHTML = finanzas.movimientos.map(m => `
+                <div class="flex justify-between items-center p-3 border-b border-white/5 item-row">
+                    <div class="flex items-center gap-3">
+                        <span class="text-[10px] uppercase font-bold text-gray-400">${m.conc}</span>
+                        <svg onclick="deleteMovimiento(${m.id})" class="w-3 h-3 edit-btn" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                    </div>
+                    <span class="text-xs font-black ${m.tipo === 'ingreso' ? 'text-green-500' : 'text-red-500'}">${m.tipo === 'ingreso' ? '+' : '-'}$${m.monto}</span>
+                </div>
+            `).join('');
+
+            if (charts.pie || charts.bar) renderFinanzasCharts();
+        }
+
+        function toggleFinanceAnalysis() {
+            const container = document.getElementById('chart-container');
+            container.classList.toggle('active');
+            if (container.classList.contains('active')) {
+                setTimeout(renderFinanzasCharts, 300);
+                analyzeFinanceHealth();
+            }
+        }
+
+        async function analyzeFinanceHealth() {
+            const tI = finanzas.movimientos.filter(m => m.tipo === 'ingreso').reduce((a, b) => a + b.monto, 0);
+            const tG = finanzas.movimientos.filter(m => m.tipo === 'gasto').reduce((a, b) => a + b.monto, 0);
+            const saldo = finanzas.saldoActual + tI - tG;
+
+            const content = document.getElementById('fin-ai-content');
+            content.innerText = "La IA está revisando tus números...";
+
+            try {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        contents: [{ parts: [{ text: `Analiza estas finanzas: Saldo: $${saldo}, Ingresos hoy: $${tI}, Gastos hoy: $${tG}. Dame un consejo financiero muy breve y motivador en español.` }] }]
+                    })
+                });
+                const data = await response.json();
+                content.innerText = data.candidates[0].content.parts[0].text;
+            } catch (e) {
+                content.innerText = "Mantén el equilibrio entre tus deseos y tus necesidades.";
+            }
+        }
+
+        function renderFinanzasCharts() {
+            const expenses = finanzas.movimientos.filter(m => m.tipo === 'gasto');
+            const incomes = finanzas.movimientos.filter(m => m.tipo === 'ingreso');
+            
+            // Pie Chart
+            const ctxPie = document.getElementById('expenses-pie-chart').getContext('2d');
+            if (charts.pie) charts.pie.destroy();
+            charts.pie = new Chart(ctxPie, {
+                type: 'doughnut',
+                data: {
+                    labels: expenses.map(e => e.conc),
+                    datasets: [{
+                        data: expenses.map(e => e.monto),
+                        backgroundColor: ['#d4af37', '#aa8a29', '#80681f', '#554515', '#2b230a'],
+                        borderWidth: 0
+                    }]
+                },
+                options: { plugins: { legend: { display: false } } }
+            });
+
+            // Bar Chart
+            const ctxBar = document.getElementById('balance-bar-chart').getContext('2d');
+            if (charts.bar) charts.bar.destroy();
+            charts.bar = new Chart(ctxBar, {
+                type: 'bar',
+                data: {
+                    labels: ['Ingresos', 'Gastos'],
+                    datasets: [{
+                        data: [
+                            incomes.reduce((a,b) => a + b.monto, 0),
+                            expenses.reduce((a,b) => a + b.monto, 0)
+                        ],
+                        backgroundColor: ['#22c55e', '#ef4444']
+                    }]
+                },
+                options: { 
+                    scales: { y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' } } },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        // --- FITNESS ---
+        function toggleCardioFields() {
+            const type = document.getElementById('fit-ejercicio').value;
+            document.getElementById('cardio-extra').classList.toggle('hidden', type !== 'cardio');
+        }
+
         function saveFitnessProfile() {
-            profile.peso = parseFloat(document.getElementById('user-peso').value) || 0;
-            profile.altura = parseFloat(document.getElementById('user-altura').value) || 0;
-            profile.target = parseFloat(document.getElementById('user-target').value) || 0;
+            profile.peso = parseFloat(document.getElementById('user-peso').value) || 80;
+            profile.altura = parseFloat(document.getElementById('user-altura').value) || 180;
+            profile.target = parseFloat(document.getElementById('user-target').value) || 75;
             localStorage.setItem('tomas_profile', JSON.stringify(profile));
             updateFitnessUI();
         }
 
-        // LÓGICA FITNESS
-        function toggleCardioFields() {
-            const tipo = document.getElementById('fit-ejercicio').value;
-            document.getElementById('cardio-extra').classList.toggle('hidden', tipo !== 'cardio');
+        function updateFitnessUI() {
+            const tmb = (10 * profile.peso) + (6.25 * profile.altura) - (5 * 25) + 5;
+            document.getElementById('val-tmb').innerText = `${Math.round(tmb)} kcal`;
+            
+            const totalCalCons = fitness.comidas.reduce((a, b) => a + (b.kcal || 0), 0);
+            const totalCalGast = fitness.ejercicios.reduce((a, b) => a + (b.kcal || 0), 0);
+            
+            document.getElementById('label-cons').innerText = `${totalCalCons} kcal`;
+            document.getElementById('label-gast').innerText = `${totalCalGast} kcal`;
+            
+            const barConsWidth = (totalCalCons / (tmb * 1.5)) * 100;
+            document.getElementById('bar-cons').style.width = `${Math.min(barConsWidth, 100)}%`;
+            
+            const barGastWidth = (totalCalGast / 1000) * 100; 
+            document.getElementById('bar-gast').style.width = `${Math.min(barGastWidth, 100)}%`;
+
+            const balance = totalCalCons - tmb - totalCalGast;
+            const statusLabel = document.getElementById('label-status-dia');
+            if(balance > 100) {
+                statusLabel.innerText = "SUPERÁVIT";
+                statusLabel.className = "text-3xl font-black text-orange-500 italic";
+            } else if (balance < -100) {
+                statusLabel.innerText = "DÉFICIT";
+                statusLabel.className = "text-3xl font-black text-green-500 italic";
+            } else {
+                statusLabel.innerText = "MANTENIMIENTO";
+                statusLabel.className = "text-3xl font-black text-blue-500 italic";
+            }
+
+            document.getElementById('total-prot').innerText = fitness.comidas.reduce((a, b) => a + (parseFloat(b.p) || 0), 0) + 'g';
+            document.getElementById('total-carb').innerText = fitness.comidas.reduce((a, b) => a + (parseFloat(b.c) || 0), 0) + 'g';
+            document.getElementById('total-fat').innerText = fitness.comidas.reduce((a, b) => a + (parseFloat(b.g) || 0), 0) + 'g';
+            
+            renderFitnessLists();
+        }
+
+        async function getCoachSummary() {
+            const modal = document.getElementById('coach-modal');
+            const responseDiv = document.getElementById('coach-response');
+            modal.style.display = 'flex';
+            responseDiv.innerText = "El Coach está analizando tu rendimiento...";
+
+            const tmb = (10 * profile.peso) + (6.25 * profile.altura) - (5 * 25) + 5;
+            const cons = fitness.comidas.reduce((a, b) => a + (b.kcal || 0), 0);
+            const gast = fitness.ejercicios.reduce((a, b) => a + (b.kcal || 0), 0);
+            const balance = cons - tmb - gast;
+
+            try {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        contents: [{ parts: [{ text: `Actúa como un coach de fitness experto. Usuario Tomas Miglio. Datos hoy: Consumo: ${cons} kcal, Gasto Ejercicio: ${gast} kcal, TMB: ${tmb} kcal, Balance: ${balance} kcal. Peso actual: ${profile.peso}kg, Objetivo: ${profile.target}kg. Da un consejo motivador y técnico breve en español.` }] }]
+                    })
+                });
+                const data = await response.json();
+                responseDiv.innerText = data.candidates[0].content.parts[0].text;
+            } catch (e) {
+                responseDiv.innerText = "¡Sigue así, Tomas! Cada paso cuenta hacia tu versión más fuerte. El equilibrio es la clave del progreso a largo plazo.";
+            }
+        }
+
+        function closeCoachModal() {
+            document.getElementById('coach-modal').style.display = 'none';
         }
 
         async function analyzeFoodWithAI() {
-            const text = document.getElementById('ia-input').value;
-            if(!text) return;
+            const input = document.getElementById('ia-input');
+            if(!input.value) return;
             document.getElementById('ia-loading').classList.remove('hidden');
             try {
                 const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
-                        contents: [{ parts: [{ text: `Analiza esta comida: "${text}". Estima macros. Responde solo JSON: {"cal": num, "prot": num, "carb": num, "fat": num, "desc": "nombre comida"}` }] }],
+                        contents: [{ parts: [{ text: `Analiza nutricionalmente: "${input.value}". Devuelve estrictamente JSON: {"nombre": string, "kcal": number, "p": number, "c": number, "g": number}` }] }],
                         generationConfig: { responseMimeType: "application/json" }
                     })
                 });
                 const data = await response.json();
                 const res = JSON.parse(data.candidates[0].content.parts[0].text);
-                fitness.comidas.unshift({ id: Date.now(), ...res });
-                localStorage.setItem('tomas_fitness_v3', JSON.stringify(fitness));
+                res.id = Date.now();
+                fitness.comidas.unshift(res);
+                localStorage.setItem(`fit_${currentViewDate}`, JSON.stringify(fitness));
                 updateFitnessUI();
-                document.getElementById('ia-input').value = '';
-            } catch (e) { console.error(e); } finally { document.getElementById('ia-loading').classList.add('hidden'); }
+                input.value = "";
+            } catch (e) {
+                console.error("AI Error:", e);
+            } finally { document.getElementById('ia-loading').classList.add('hidden'); }
+        }
+
+        function deleteComida(id) {
+            fitness.comidas = fitness.comidas.filter(c => c.id !== id);
+            localStorage.setItem(`fit_${currentViewDate}`, JSON.stringify(fitness));
+            updateFitnessUI();
         }
 
         function addExercise() {
-            const tipo = document.getElementById('fit-ejercicio').value;
-            const dur = parseFloat(document.getElementById('fit-duracion').value) || 0;
-            const km = parseFloat(document.getElementById('fit-km').value) || 0;
-            if(dur <= 0) return;
-
-            let kcal = (tipo === 'pesas') ? dur * 7 : dur * 11;
-            let extra = "";
-            if(tipo === 'cardio' && km > 0) {
-                const speed = (km / (dur/60)).toFixed(1);
-                extra = `${km}km a ${speed}km/h`;
-            }
-
-            fitness.ejercicios.unshift({ id: Date.now(), tipo, dur, kcal, extra });
-            localStorage.setItem('tomas_fitness_v3', JSON.stringify(fitness));
+            const type = document.getElementById('fit-ejercicio').value;
+            const dur = parseFloat(document.getElementById('fit-duracion').value);
+            if(!dur) return;
+            let kcal = (type === 'pesas' ? 6 : 10) * dur;
+            fitness.ejercicios.unshift({ id: Date.now(), type, dur, kcal });
+            localStorage.setItem(`fit_${currentViewDate}`, JSON.stringify(fitness));
             updateFitnessUI();
             document.getElementById('fit-duracion').value = '';
-            document.getElementById('fit-km').value = '';
         }
 
-        function updateFitnessUI() {
-            const tmb = Math.round(66 + (13.7 * profile.peso) + (5 * profile.altura) - (6.8 * 25)); 
-            document.getElementById('val-tmb').innerText = `${tmb.toLocaleString()} kcal`;
+        function deleteEjercicio(id) {
+            fitness.ejercicios = fitness.ejercicios.filter(e => e.id !== id);
+            localStorage.setItem(`fit_${currentViewDate}`, JSON.stringify(fitness));
+            updateFitnessUI();
+        }
 
-            const tC = fitness.comidas.reduce((a, b) => a + b.cal, 0);
-            const tP = fitness.comidas.reduce((a, b) => a + b.prot, 0);
-            const tCar = fitness.comidas.reduce((a, b) => a + b.carb, 0);
-            const tF = fitness.comidas.reduce((a, b) => a + b.fat, 0);
-            
-            const tE = fitness.ejercicios.reduce((a, b) => a + b.kcal, 0);
-            const totalGasto = tmb + tE;
-            const balance = tC - totalGasto;
-
-            document.getElementById('total-prot').innerText = `${Math.round(tP)}g`;
-            document.getElementById('total-carb').innerText = `${Math.round(tCar)}g`;
-            document.getElementById('total-fat').innerText = `${Math.round(tF)}g`;
-            document.getElementById('label-cons').innerText = `${Math.round(tC)} kcal`;
-            document.getElementById('label-gast').innerText = `${Math.round(totalGasto)} kcal`;
-
-            const max = Math.max(tC, totalGasto, 2500);
-            document.getElementById('bar-cons').style.width = `${(tC / max) * 100}%`;
-            document.getElementById('bar-gast').style.width = `${(totalGasto / max) * 100}%`;
-
-            const statusDia = document.getElementById('label-status-dia');
-            if(balance < -150) { statusDia.innerText = "DÉFICIT"; statusDia.className = "text-3xl font-black text-green-500 italic"; }
-            else if(balance > 150) { statusDia.innerText = "SUPERÁVIT"; statusDia.className = "text-3xl font-black text-red-500 italic"; }
-            else { statusDia.innerText = "EQUILIBRIO"; statusDia.className = "text-3xl font-black text-blue-500 italic"; }
-
-            const diffTarget = (profile.peso - profile.target).toFixed(1);
-            document.getElementById('analisis-ia-dia').innerText = `Hoy has consumido ${tC} kcal y gastado ${totalGasto} kcal. Estás en un balance de ${balance > 0 ? '+' : ''}${Math.round(balance)} kcal. Para llegar a tu objetivo de ${profile.target}kg, te faltan bajar ${diffTarget}kg. ${balance < 0 ? '¡Buen trabajo con el déficit!' : 'Ojo con el exceso hoy.'}`;
-
+        function renderFitnessLists() {
             document.getElementById('lista-comidas').innerHTML = fitness.comidas.map(c => `
-                <div class="p-3 bg-white/5 border border-white/5 rounded-xl flex justify-between">
-                    <div><span class="text-[10px] font-black uppercase">${c.desc}</span><br>
-                    <span class="text-[8px] text-gray-500 uppercase font-bold">P:${c.prot}g C:${c.carb}g G:${c.fat}g</span></div>
-                    <span class="text-orange-400 font-black text-xs">${c.cal} kcal</span>
+                <div class="flex justify-between items-center text-xs p-3 bg-white/5 rounded-lg border border-white/5 item-row">
+                    <div class="flex items-center gap-2">
+                        <span class="font-bold text-gray-300 uppercase">${c.nombre}</span>
+                        <svg onclick="deleteComida(${c.id})" class="w-3 h-3 edit-btn" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                    </div>
+                    <span class="font-black text-orange-400">${c.kcal} kcal</span>
                 </div>
             `).join('');
-
             document.getElementById('lista-ejercicios').innerHTML = fitness.ejercicios.map(e => `
-                <div class="p-3 bg-white/5 border border-white/5 rounded-xl flex justify-between">
-                    <div><span class="text-[10px] font-black uppercase text-purple-400">${e.tipo} - ${e.dur}m</span><br>
-                    <span class="text-[8px] text-gray-400 uppercase font-bold">${e.extra}</span></div>
-                    <span class="text-white font-black text-xs">-${e.kcal} kcal</span>
+                <div class="flex justify-between items-center text-xs p-3 bg-white/5 rounded-lg border border-white/5 item-row">
+                    <div class="flex items-center gap-2">
+                        <span class="font-bold text-gray-300 uppercase">${e.type} (${e.dur}m)</span>
+                        <svg onclick="deleteEjercicio(${e.id})" class="w-3 h-3 edit-btn" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                    </div>
+                    <span class="font-black text-purple-400">-${e.kcal} kcal</span>
                 </div>
             `).join('');
         }
 
-        // FINANZAS
-        function updateFinanzasUI() {
-            document.getElementById('fin-saldo-actual').value = finanzas.saldoActual;
-            const totalG = finanzas.movimientos.filter(m => m.tipo === 'gasto').reduce((a, b) => a + b.monto, 0);
-            const totalI = finanzas.movimientos.filter(m => m.tipo === 'ingreso').reduce((a, b) => a + b.monto, 0);
-            const saldoFinal = finanzas.saldoActual + totalI - totalG;
-            document.getElementById('display-saldo-final').innerText = `$${saldoFinal.toLocaleString()}`;
-            document.getElementById('lista-general').innerHTML = finanzas.movimientos.map(m => `
-                <div class="flex justify-between items-center p-3 ${m.tipo === 'gasto' ? 'bg-red-500/5' : 'bg-green-500/5'} border border-white/5 rounded-xl">
-                    <span class="text-xs uppercase font-bold">${m.concepto}</span>
-                    <span class="font-black text-xs ${m.tipo === 'gasto' ? 'text-red-500' : 'text-green-500'}">${m.tipo==='gasto'?'-':'+'}$${m.monto}</span>
-                </div>
-            `).join('');
+        // --- CALENDARIO ---
+        function renderCalendar() {
+            const body = document.getElementById('calendar-body');
+            body.innerHTML = "";
+            const year = calendarMonthDate.getFullYear();
+            const month = calendarMonthDate.getMonth();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const firstDay = new Date(year, month, 1).getDay();
+            
+            const label = document.getElementById('cal-month-label');
+            const months = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+            label.innerText = `${months[month]} ${year}`;
+
+            const offset = firstDay === 0 ? 6 : firstDay - 1;
+            for(let o=0; o<offset; o++) body.innerHTML += `<div></div>`;
+
+            for(let i=1; i<=daysInMonth; i++) {
+                const dateKey = `${year}-${String(month+1).padStart(2,'0')}-${String(i).padStart(2,'0')}`;
+                const isToday = dateKey === getTodayKey();
+                const isSelected = dateKey === currentViewDate;
+                
+                body.innerHTML += `
+                    <div onclick="loadDayData('${dateKey}')" 
+                         class="calendar-day ${isToday ? 'day-today' : ''} ${isSelected ? 'day-selected' : ''}">
+                         ${i}
+                    </div>`;
+            }
         }
-        function addMovimiento() {
-            const concepto = document.getElementById('fin-concepto').value;
-            const monto = parseFloat(document.getElementById('fin-monto').value);
-            const tipo = document.getElementById('fin-tipo').value;
-            if(!concepto || isNaN(monto)) return;
-            finanzas.movimientos.unshift({ concepto, monto, tipo });
-            localStorage.setItem('tomas_finanzas', JSON.stringify(finanzas));
-            updateFinanzasUI();
+
+        function changeCalMonth(offset) {
+            calendarMonthDate.setMonth(calendarMonthDate.getMonth() + offset);
+            renderCalendar();
         }
-        function saveAndUpdateFinanzas() {
-            finanzas.saldoActual = parseFloat(document.getElementById('fin-saldo-actual').value) || 0;
-            localStorage.setItem('tomas_finanzas', JSON.stringify(finanzas));
-            updateFinanzasUI();
-        }
+
+        window.onload = () => {
+            if(!localStorage.getItem('tomas_profile')) {
+                localStorage.setItem('tomas_profile', JSON.stringify({ peso: 80, altura: 180, target: 75 }));
+            }
+        };
+
     </script>
 </body>
 </html>
