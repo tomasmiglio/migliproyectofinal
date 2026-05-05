@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tomas Miglio - Dashboard</title>
+    <!-- Favicon dinámico con el logo de la "M" -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 400'><path d='M100 120 L300 120 M200 120 L200 280 M100 150 L100 300 L200 220 L300 300 L300 150' fill='none' stroke='%23d4af37' stroke-width='25' stroke-linejoin='bevel' /></svg>">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Inter:wght@300;400;600;700&display=swap');
+        
+        :root {
+            --bg-color: #0a0a0a;
+            --card-bg: #141414;
+            --border-color: #262626;
+            --gold: #d4af37;
+        }
+
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: var(--bg-color);
+            color: #e5e5e5;
+        }
+
+        .brand-name {
+            font-family: 'Cinzel Decorative', cursive;
+            background: linear-gradient(to right, #d4af37, #f9f295);
+            -webkit-background-clip: text;
+            -webkit-fill-color: transparent;
+            letter-spacing: 2px;
+        }
+
+        #landing-page {
+            position: fixed;
+            inset: 0;
+            background: radial-gradient(circle at center, #1a1a1a 0%, #050505 100%);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.8s ease, visibility 0.8s;
+        }
+
+        .btn-enter {
+            margin-top: 2.5rem;
+            padding: 0.8rem 2.5rem;
+            border: 1px solid var(--gold);
+            color: var(--gold);
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            font-weight: bold;
+            transition: all 0.3s;
+            cursor: pointer;
+            background: transparent;
+        }
+
+        .btn-enter:hover {
+            background: var(--gold);
+            color: black;
+            box-shadow: 0 0 25px rgba(212, 175, 55, 0.4);
+        }
+
+        .tab-active { 
+            border-bottom: 2px solid var(--gold); 
+            color: var(--gold); 
+        }
+
+        .hidden-page { opacity: 0; visibility: hidden; pointer-events: none; }
+        
+        .glass-card {
+            background: rgba(20, 20, 20, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 1.5rem;
+        }
+
+        .input-dark {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+            padding: 0.75rem;
+            border-radius: 0.75rem;
+            outline: none;
+            transition: all 0.3s;
+        }
+
+        .input-dark:focus { border-color: var(--gold); background: rgba(255, 255, 255, 0.05); }
+        input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
+        
+        .progress-container { width: 100%; background: #222; height: 12px; border-radius: 6px; overflow: hidden; }
+        .progress-bar { height: 100%; transition: width 0.5s ease-in-out; }
+
+        .live-dot {
+            width: 8px;
+            height: 8px;
+            background-color: #ef4444;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 6px;
+            animation: pulse-red 1.5s infinite;
+        }
+
+        @keyframes pulse-red {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- PANTALLA INICIAL -->
+    <div id="landing-page">
+        <div class="w-48 h-48 mb-8 text-gold">
+            <svg viewBox="0 0 400 400">
+                <path d="M100 120 L300 120 M200 120 L200 280 M100 150 L100 300 L200 220 L300 300 L300 150" 
+                      fill="none" stroke="currentColor" stroke-width="25" stroke-linejoin="bevel" />
+            </svg>
+        </div>
+        <h1 class="brand-name text-5xl text-center uppercase">Tomas Miglio</h1>
+        <button onclick="enterApp()" class="btn-enter">Ingresar</button>
+    </div>
+
+    <!-- NAVBAR -->
+    <nav class="bg-black/90 border-b border-white/5 sticky top-0 z-50">
+        <div class="max-w-6xl mx-auto px-6">
+            <div class="flex justify-between h-20 items-center">
+                <span class="brand-name text-xl">Tomas Miglio</span>
+                <div class="flex space-x-8">
+                    <button onclick="switchTab('dashboard')" id="tab-dashboard" class="py-2 text-[10px] font-black uppercase tracking-widest tab-active">Dashboard</button>
+                    <button onclick="switchTab('finanzas')" id="tab-finanzas" class="py-2 text-[10px] font-black uppercase tracking-widest text-gray-500">Finanzas</button>
+                    <button onclick="switchTab('fitness')" id="tab-fitness" class="py-2 text-[10px] font-black uppercase tracking-widest text-gray-500">Fitness</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-6xl mx-auto p-6">
+        
+        <!-- DASHBOARD -->
+        <section id="sec-dashboard" class="space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Clima -->
+                <div class="glass-card p-6 border-l-4 border-blue-500">
+                    <h4 class="text-[10px] font-bold text-gray-500 uppercase mb-1">Morteros, Córdoba</h4>
+                    <p id="temp-val" class="text-4xl font-black">--°C</p>
+                    <p class="text-xs text-gray-400">Clima en vivo</p>
+                </div>
+                <!-- Dólar -->
+                <div class="glass-card p-6 border-l-4 border-green-500">
+                    <h4 class="text-[10px] font-bold text-gray-500 uppercase mb-1">Dólar Blue</h4>
+                    <p class="text-4xl font-black text-green-500">$<span id="dolar-val">----</span></p>
+                    <p class="text-[10px] text-gray-600 uppercase">Cotización actual</p>
+                </div>
+                <!-- 9z Team Tracker -->
+                <div class="glass-card p-6 border-l-4 border-purple-500 relative overflow-hidden">
+                    <div class="flex justify-between items-start mb-1">
+                        <h4 class="text-[10px] font-bold text-gray-500 uppercase">9z Team Tracker</h4>
+                        <button onclick="update9zMatch()" class="text-[8px] text-purple-400 font-bold hover:text-purple-300 uppercase tracking-tighter">Actualizar</button>
+                    </div>
+                    <div id="9z-status-container">
+                        <div id="9z-loading" class="animate-pulse flex space-y-2 flex-col">
+                            <div class="h-6 bg-white/5 rounded w-3/4"></div>
+                            <div class="h-3 bg-white/5 rounded w-1/2"></div>
+                        </div>
+                        <div id="9z-content" class="hidden">
+                            <p id="9z-match-name" class="text-xl font-bold italic truncate">Cargando...</p>
+                            <p id="9z-match-time" class="text-[10px] font-bold uppercase tracking-wide"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="glass-card p-8">
+                <h3 class="brand-name text-2xl mb-4">Notas Rápidas</h3>
+                <textarea id="personal-notes" class="w-full h-64 bg-transparent border border-white/10 rounded-2xl p-6 text-gray-300 outline-none focus:border-gold/30 resize-none" placeholder="Escribe tus objetivos del día..." oninput="saveNotes()"></textarea>
+            </div>
+        </section>
+
+        <!-- FINANZAS -->
+        <section id="sec-finanzas" class="hidden space-y-6">
+            <div class="glass-card p-8 bg-gradient-to-br from-[#111] to-black">
+                <div class="flex flex-col md:flex-row justify-between items-center gap-8">
+                    <div class="w-full md:w-auto">
+                        <h3 class="text-[10px] text-gold uppercase font-bold tracking-widest mb-4">Capital Disponible</h3>
+                        <div class="flex items-center gap-4 mb-2">
+                            <span class="text-5xl font-light text-gray-600">$</span>
+                            <input type="number" id="fin-saldo-actual" class="bg-transparent text-6xl font-black focus:outline-none w-full md:w-80 border-b border-gold/10" oninput="saveAndUpdateFinanzas()" placeholder="0">
+                        </div>
+                        <p class="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Saldo Proyectado: <span id="display-saldo-final" class="text-white">$0</span></p>
+                    </div>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="glass-card p-6">
+                    <h2 class="text-[10px] font-black mb-6 text-gray-500 uppercase tracking-widest">Nuevo Registro</h2>
+                    <div class="space-y-4">
+                        <input type="text" id="fin-concepto" placeholder="Concepto" class="input-dark w-full">
+                        <div class="grid grid-cols-2 gap-4">
+                            <input type="number" id="fin-monto" placeholder="Monto" class="input-dark">
+                            <select id="fin-tipo" class="input-dark">
+                                <option value="gasto">Gasto</option>
+                                <option value="ingreso">Ingreso</option>
+                            </select>
+                        </div>
+                        <button onclick="addMovimiento()" class="w-full bg-gold text-white py-3 rounded-xl font-black uppercase text-xs hover:brightness-110">Registrar Movimiento</button>
+                    </div>
+                </div>
+                <div class="glass-card p-6">
+                    <h2 class="text-[10px] font-black text-gray-500 uppercase mb-6">Historial</h2>
+                    <div id="lista-general" class="space-y-3"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- MIGLIO FITNESS -->
+        <section id="sec-fitness" class="hidden space-y-6 pb-20">
+            <!-- Perfil Físico -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="glass-card p-6">
+                    <h3 class="text-[10px] font-black text-gold uppercase tracking-widest mb-4">Perfil Físico</h3>
+                    <div class="grid grid-cols-3 gap-4">
+                        <div>
+                            <label class="text-[8px] text-gray-500 uppercase block mb-1">Peso (kg)</label>
+                            <input type="number" id="user-peso" class="input-dark w-full text-center font-bold" value="80" oninput="saveFitnessProfile()">
+                        </div>
+                        <div>
+                            <label class="text-[8px] text-gray-500 uppercase block mb-1">Altura (cm)</label>
+                            <input type="number" id="user-altura" class="input-dark w-full text-center font-bold" value="180" oninput="saveFitnessProfile()">
+                        </div>
+                        <div>
+                            <label class="text-[8px] text-gray-500 uppercase block mb-1">Objetivo (kg)</label>
+                            <input type="number" id="user-target" class="input-dark w-full text-center font-bold text-gold" value="75" oninput="saveFitnessProfile()">
+                        </div>
+                    </div>
+                </div>
+                <div class="glass-card p-6 col-span-2">
+                    <h3 class="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-4">Resumen de Energía</h3>
+                    <div class="flex justify-between items-end">
+                        <div>
+                            <p class="text-[9px] text-gray-400 uppercase font-black">Metabolismo Basal (TMB)</p>
+                            <p id="val-tmb" class="text-3xl font-black">1,800 kcal</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-[9px] text-gray-400 uppercase font-black">Estado del Día</p>
+                            <p id="label-status-dia" class="text-3xl font-black text-blue-500 italic">EQUILIBRIO</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Gráfico y Macros -->
+            <div class="glass-card p-8 bg-gradient-to-r from-black to-[#111]">
+                <h2 class="brand-name text-3xl mb-6">Miglio Fitness</h2>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div class="space-y-4">
+                        <div class="space-y-4">
+                            <div>
+                                <div class="flex justify-between text-xs mb-2">
+                                    <span class="text-orange-400 font-bold uppercase">Consumidas</span>
+                                    <span id="label-cons" class="font-black text-white">0 kcal</span>
+                                </div>
+                                <div class="progress-container"><div id="bar-cons" class="progress-bar bg-orange-500" style="width: 0%"></div></div>
+                            </div>
+                            <div>
+                                <div class="flex justify-between text-xs mb-2">
+                                    <span class="text-purple-400 font-bold uppercase">Gasto Total (Basal + Actividad)</span>
+                                    <span id="label-gast" class="font-black text-white">0 kcal</span>
+                                </div>
+                                <div class="progress-container"><div id="bar-gast" class="progress-bar bg-purple-500" style="width: 0%"></div></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-3 gap-4">
+                        <div class="bg-white/5 p-4 rounded-2xl border border-blue-500/10 text-center">
+                            <p class="text-[8px] text-blue-400 font-black uppercase mb-1">Proteína</p>
+                            <p id="total-prot" class="text-xl font-black">0g</p>
+                        </div>
+                        <div class="bg-white/5 p-4 rounded-2xl border border-green-500/10 text-center">
+                            <p class="text-[8px] text-green-400 font-black uppercase mb-1">Carbos</p>
+                            <p id="total-carb" class="text-xl font-black">0g</p>
+                        </div>
+                        <div class="bg-white/5 p-4 rounded-2xl border border-yellow-500/10 text-center">
+                            <p class="text-[8px] text-yellow-400 font-black uppercase mb-1">Grasas</p>
+                            <p id="total-fat" class="text-xl font-black">0g</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Entrada de Datos -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="glass-card p-6 border-orange-500/20">
+                    <h2 class="text-sm font-bold text-orange-400 uppercase tracking-widest mb-4">IA Nutricional</h2>
+                    <textarea id="ia-input" rows="3" placeholder="Ej: 300g pasta boloñesa..." class="input-dark w-full text-sm mb-4 resize-none"></textarea>
+                    <button onclick="analyzeFoodWithAI()" id="btn-ia" class="w-full bg-orange-600 text-white py-3 rounded-xl font-black uppercase text-[10px]">Analizar Comida</button>
+                    <div id="ia-loading" class="hidden mt-4 text-center animate-pulse text-[10px] uppercase text-gray-500 tracking-widest">Procesando macros...</div>
+                    <div id="lista-comidas" class="mt-6 space-y-2"></div>
+                </div>
+
+                <div class="glass-card p-6 border-purple-500/20">
+                    <h2 class="text-sm font-bold text-purple-400 uppercase tracking-widest mb-4">Actividad Física</h2>
+                    <div class="space-y-4">
+                        <div class="grid grid-cols-2 gap-3">
+                            <select id="fit-ejercicio" class="input-dark text-xs" onchange="toggleCardioFields()">
+                                <option value="pesas">Pesas / Fuerza</option>
+                                <option value="cardio">Cardio / Bici</option>
+                            </select>
+                            <input type="number" id="fit-duracion" placeholder="Minutos" class="input-dark text-xs">
+                        </div>
+                        <div id="cardio-extra" class="hidden grid grid-cols-2 gap-3 p-3 bg-white/5 rounded-xl">
+                            <div>
+                                <label class="text-[8px] text-gray-500 font-black uppercase">KM</label>
+                                <input type="number" id="fit-km" placeholder="0" class="bg-transparent border-b border-white/10 w-full text-sm outline-none">
+                            </div>
+                            <div class="text-right">
+                                <label class="text-[8px] text-gray-500 font-black uppercase">KM/H</label>
+                                <p id="val-kmh" class="text-sm font-black text-purple-400">0</p>
+                            </div>
+                        </div>
+                        <button onclick="addExercise()" class="w-full bg-purple-600 text-white py-3 rounded-xl font-black uppercase text-[10px]">Registrar</button>
+                        <div id="lista-ejercicios" class="mt-4 space-y-2"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ANÁLISIS DEL DÍA -->
+            <div class="glass-card p-8 border-gold/10">
+                <h2 class="text-sm font-bold text-gold uppercase tracking-widest mb-6">Análisis Profundo del Día</h2>
+                <div id="analisis-ia-dia" class="text-gray-400 text-sm leading-relaxed italic">
+                    Ingresa tus comidas y ejercicios para obtener un reporte IA sobre tu rendimiento hoy...
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        const apiKey = ""; 
+
+        // PERSISTENCIA
+        let profile = JSON.parse(localStorage.getItem('tomas_profile')) || { peso: 80, altura: 180, target: 75 };
+        let fitness = JSON.parse(localStorage.getItem('tomas_fitness_v3')) || { comidas: [], ejercicios: [] };
+        let finanzas = JSON.parse(localStorage.getItem('tomas_finanzas')) || { saldoActual: 0, movimientos: [] };
+
+        // NAVEGACIÓN
+        function enterApp() {
+            document.getElementById('landing-page').classList.add('hidden-page');
+            setTimeout(() => document.getElementById('landing-page').style.display = 'none', 800);
+            initDashboard();
+        }
+
+        function switchTab(tab) {
+            ['dashboard', 'finanzas', 'fitness'].forEach(t => {
+                document.getElementById(`sec-${t}`).classList.add('hidden');
+                document.getElementById(`tab-${t}`).classList.remove('tab-active');
+                document.getElementById(`tab-${t}`).classList.add('text-gray-500');
+            });
+            document.getElementById(`sec-${tab}`).classList.remove('hidden');
+            document.getElementById(`tab-${tab}`).classList.add('tab-active');
+            if(tab === 'fitness') updateFitnessUI();
+            if(tab === 'finanzas') updateFinanzasUI();
+        }
+
+        // DASHBOARD
+        async function initDashboard() {
+            document.getElementById('personal-notes').value = localStorage.getItem('tomas_notes') || "";
+            document.getElementById('user-peso').value = profile.peso;
+            document.getElementById('user-altura').value = profile.altura;
+            document.getElementById('user-target').value = profile.target;
+            
+            // Clima
+            try {
+                const res = await fetch('https://api.open-meteo.com/v1/forecast?latitude=-30.7121&longitude=-61.9986&current_weather=true');
+                const data = await res.json();
+                document.getElementById('temp-val').innerText = `${Math.round(data.current_weather.temperature)}°C`;
+            } catch (e) { document.getElementById('temp-val').innerText = "22°C"; }
+            
+            // Dólar
+            try {
+                const res = await fetch('https://dolarapi.com/v1/dolares/blue');
+                const data = await res.json();
+                document.getElementById('dolar-val').innerText = data.venta;
+            } catch (e) { document.getElementById('dolar-val').innerText = "1245"; }
+
+            // 9z Match
+            update9zMatch();
+        }
+
+        async function update9zMatch() {
+            const loading = document.getElementById('9z-loading');
+            const content = document.getElementById('9z-content');
+            loading.classList.remove('hidden');
+            content.classList.add('hidden');
+
+            try {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        contents: [{ parts: [{ text: "Busca en HLTV y resultados recientes: ¿Está jugando 9z Team ahora mismo en CS2? Si está jugando, devuelve marcador y rival. Si no, devuelve próximo partido y horario. Responde solo JSON: {\"isLive\": bool, \"match\": \"9z vs Rival\", \"score\": \"Score o Horario\", \"status\": \"LIVE o Proximo\"}" }] }],
+                        tools: [{ "google_search": {} }],
+                        generationConfig: { responseMimeType: "application/json" }
+                    })
+                });
+                const data = await response.json();
+                const res = JSON.parse(data.candidates[0].content.parts[0].text);
+                
+                const nameEl = document.getElementById('9z-match-name');
+                const timeEl = document.getElementById('9z-match-time');
+
+                if (res.isLive) {
+                    nameEl.innerHTML = `<span class="live-dot"></span>${res.match}`;
+                    timeEl.innerText = `${res.score} - EN VIVO`;
+                    timeEl.className = "text-[10px] font-bold text-purple-400 uppercase tracking-wide animate-pulse";
+                } else {
+                    nameEl.innerText = res.match;
+                    timeEl.innerText = res.score;
+                    timeEl.className = "text-[10px] font-bold text-gray-500 uppercase tracking-wide";
+                }
+
+                loading.classList.add('hidden');
+                content.classList.remove('hidden');
+            } catch (e) {
+                document.getElementById('9z-match-name').innerText = "9z vs TBD";
+                document.getElementById('9z-match-time').innerText = "Sin partidos hoy";
+                loading.classList.add('hidden');
+                content.classList.remove('hidden');
+            }
+        }
+
+        function saveNotes() { localStorage.setItem('tomas_notes', document.getElementById('personal-notes').value); }
+
+        // PERFIL FITNESS
+        function saveFitnessProfile() {
+            profile.peso = parseFloat(document.getElementById('user-peso').value) || 0;
+            profile.altura = parseFloat(document.getElementById('user-altura').value) || 0;
+            profile.target = parseFloat(document.getElementById('user-target').value) || 0;
+            localStorage.setItem('tomas_profile', JSON.stringify(profile));
+            updateFitnessUI();
+        }
+
+        // LÓGICA FITNESS
+        function toggleCardioFields() {
+            const tipo = document.getElementById('fit-ejercicio').value;
+            document.getElementById('cardio-extra').classList.toggle('hidden', tipo !== 'cardio');
+        }
+
+        async function analyzeFoodWithAI() {
+            const text = document.getElementById('ia-input').value;
+            if(!text) return;
+            document.getElementById('ia-loading').classList.remove('hidden');
+            try {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        contents: [{ parts: [{ text: `Analiza esta comida: "${text}". Estima macros. Responde solo JSON: {"cal": num, "prot": num, "carb": num, "fat": num, "desc": "nombre comida"}` }] }],
+                        generationConfig: { responseMimeType: "application/json" }
+                    })
+                });
+                const data = await response.json();
+                const res = JSON.parse(data.candidates[0].content.parts[0].text);
+                fitness.comidas.unshift({ id: Date.now(), ...res });
+                localStorage.setItem('tomas_fitness_v3', JSON.stringify(fitness));
+                updateFitnessUI();
+                document.getElementById('ia-input').value = '';
+            } catch (e) { console.error(e); } finally { document.getElementById('ia-loading').classList.add('hidden'); }
+        }
+
+        function addExercise() {
+            const tipo = document.getElementById('fit-ejercicio').value;
+            const dur = parseFloat(document.getElementById('fit-duracion').value) || 0;
+            const km = parseFloat(document.getElementById('fit-km').value) || 0;
+            if(dur <= 0) return;
+
+            let kcal = (tipo === 'pesas') ? dur * 7 : dur * 11;
+            let extra = "";
+            if(tipo === 'cardio' && km > 0) {
+                const speed = (km / (dur/60)).toFixed(1);
+                extra = `${km}km a ${speed}km/h`;
+            }
+
+            fitness.ejercicios.unshift({ id: Date.now(), tipo, dur, kcal, extra });
+            localStorage.setItem('tomas_fitness_v3', JSON.stringify(fitness));
+            updateFitnessUI();
+            document.getElementById('fit-duracion').value = '';
+            document.getElementById('fit-km').value = '';
+        }
+
+        function updateFitnessUI() {
+            const tmb = Math.round(66 + (13.7 * profile.peso) + (5 * profile.altura) - (6.8 * 25)); 
+            document.getElementById('val-tmb').innerText = `${tmb.toLocaleString()} kcal`;
+
+            const tC = fitness.comidas.reduce((a, b) => a + b.cal, 0);
+            const tP = fitness.comidas.reduce((a, b) => a + b.prot, 0);
+            const tCar = fitness.comidas.reduce((a, b) => a + b.carb, 0);
+            const tF = fitness.comidas.reduce((a, b) => a + b.fat, 0);
+            
+            const tE = fitness.ejercicios.reduce((a, b) => a + b.kcal, 0);
+            const totalGasto = tmb + tE;
+            const balance = tC - totalGasto;
+
+            document.getElementById('total-prot').innerText = `${Math.round(tP)}g`;
+            document.getElementById('total-carb').innerText = `${Math.round(tCar)}g`;
+            document.getElementById('total-fat').innerText = `${Math.round(tF)}g`;
+            document.getElementById('label-cons').innerText = `${Math.round(tC)} kcal`;
+            document.getElementById('label-gast').innerText = `${Math.round(totalGasto)} kcal`;
+
+            const max = Math.max(tC, totalGasto, 2500);
+            document.getElementById('bar-cons').style.width = `${(tC / max) * 100}%`;
+            document.getElementById('bar-gast').style.width = `${(totalGasto / max) * 100}%`;
+
+            const statusDia = document.getElementById('label-status-dia');
+            if(balance < -150) { statusDia.innerText = "DÉFICIT"; statusDia.className = "text-3xl font-black text-green-500 italic"; }
+            else if(balance > 150) { statusDia.innerText = "SUPERÁVIT"; statusDia.className = "text-3xl font-black text-red-500 italic"; }
+            else { statusDia.innerText = "EQUILIBRIO"; statusDia.className = "text-3xl font-black text-blue-500 italic"; }
+
+            const diffTarget = (profile.peso - profile.target).toFixed(1);
+            document.getElementById('analisis-ia-dia').innerText = `Hoy has consumido ${tC} kcal y gastado ${totalGasto} kcal. Estás en un balance de ${balance > 0 ? '+' : ''}${Math.round(balance)} kcal. Para llegar a tu objetivo de ${profile.target}kg, te faltan bajar ${diffTarget}kg. ${balance < 0 ? '¡Buen trabajo con el déficit!' : 'Ojo con el exceso hoy.'}`;
+
+            document.getElementById('lista-comidas').innerHTML = fitness.comidas.map(c => `
+                <div class="p-3 bg-white/5 border border-white/5 rounded-xl flex justify-between">
+                    <div><span class="text-[10px] font-black uppercase">${c.desc}</span><br>
+                    <span class="text-[8px] text-gray-500 uppercase font-bold">P:${c.prot}g C:${c.carb}g G:${c.fat}g</span></div>
+                    <span class="text-orange-400 font-black text-xs">${c.cal} kcal</span>
+                </div>
+            `).join('');
+
+            document.getElementById('lista-ejercicios').innerHTML = fitness.ejercicios.map(e => `
+                <div class="p-3 bg-white/5 border border-white/5 rounded-xl flex justify-between">
+                    <div><span class="text-[10px] font-black uppercase text-purple-400">${e.tipo} - ${e.dur}m</span><br>
+                    <span class="text-[8px] text-gray-400 uppercase font-bold">${e.extra}</span></div>
+                    <span class="text-white font-black text-xs">-${e.kcal} kcal</span>
+                </div>
+            `).join('');
+        }
+
+        // FINANZAS
+        function updateFinanzasUI() {
+            document.getElementById('fin-saldo-actual').value = finanzas.saldoActual;
+            const totalG = finanzas.movimientos.filter(m => m.tipo === 'gasto').reduce((a, b) => a + b.monto, 0);
+            const totalI = finanzas.movimientos.filter(m => m.tipo === 'ingreso').reduce((a, b) => a + b.monto, 0);
+            const saldoFinal = finanzas.saldoActual + totalI - totalG;
+            document.getElementById('display-saldo-final').innerText = `$${saldoFinal.toLocaleString()}`;
+            document.getElementById('lista-general').innerHTML = finanzas.movimientos.map(m => `
+                <div class="flex justify-between items-center p-3 ${m.tipo === 'gasto' ? 'bg-red-500/5' : 'bg-green-500/5'} border border-white/5 rounded-xl">
+                    <span class="text-xs uppercase font-bold">${m.concepto}</span>
+                    <span class="font-black text-xs ${m.tipo === 'gasto' ? 'text-red-500' : 'text-green-500'}">${m.tipo==='gasto'?'-':'+'}$${m.monto}</span>
+                </div>
+            `).join('');
+        }
+        function addMovimiento() {
+            const concepto = document.getElementById('fin-concepto').value;
+            const monto = parseFloat(document.getElementById('fin-monto').value);
+            const tipo = document.getElementById('fin-tipo').value;
+            if(!concepto || isNaN(monto)) return;
+            finanzas.movimientos.unshift({ concepto, monto, tipo });
+            localStorage.setItem('tomas_finanzas', JSON.stringify(finanzas));
+            updateFinanzasUI();
+        }
+        function saveAndUpdateFinanzas() {
+            finanzas.saldoActual = parseFloat(document.getElementById('fin-saldo-actual').value) || 0;
+            localStorage.setItem('tomas_finanzas', JSON.stringify(finanzas));
+            updateFinanzasUI();
+        }
+    </script>
+</body>
+</html>
